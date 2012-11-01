@@ -27,7 +27,7 @@ const short int FINAL_P[64] =
 
 // E BIT-SELECT TABLE
 // (32bit - 48bit) 8 blocks of 6 bits each
-const short int SELECT[8][6] = 
+const short int SELECT[48] = 
 	{ 32, 1,  2,  3,  4,  5, 4,  5,  6,  7,  8,  9, 8,  9,  10, 11, 12, 13, 12, 13, 14, 15, 16, 17, 16, 17, 18, 19, 20, 21, 20, 21, 22, 23, 24, 25, 24, 25, 26, 27, 28, 29, 28, 29, 30, 31, 32, 1 };
 
 /* ----- S-BOXES ---- */
@@ -92,7 +92,7 @@ class DESEncrypter
 {
 private:
 	BitUtils bitUtils;					// utility class for handling bit manipulation
-	__int64 keys[16];					// holds final keys	
+	unsigned __int64 keys[16];					// holds final keys	
 	unsigned __int64 permuteKey(unsigned __int64, const short[], int lengthIn, int lengthOut);
 	void initialKeyPermute(unsigned __int64);
 	void createSubkeys(unsigned __int64);
@@ -100,7 +100,7 @@ public:
 	unsigned __int64 originalKey;		// holds original 64-bit key
 	DESEncrypter(unsigned __int64);
 	~DESEncrypter(void);
-	__int64 encryptBlock(__int64);
-	__int64 decryptBlock(__int64);
+	unsigned __int64 encryptBlock(unsigned __int64);
+	unsigned __int64 decryptBlock(unsigned __int64);
 };
 

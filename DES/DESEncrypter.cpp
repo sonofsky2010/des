@@ -58,14 +58,65 @@ void DESEncrypter::createSubkeys(unsigned __int64 key) {
 	}
 }
 
-__int64 DESEncrypter::encryptBlock(__int64 plainMsg) {
-	__int64 result = 0;
+unsigned __int64 efunc(unsigned __int32 msg, unsigned __int64 key) {
+	unsigned __int64 result = 0;
+	result = msg << 31;
+
+	result = permuteKey(result, SELECT, 32, 48);
+	result = result ^ key;
+
+	// FIND row i and col j 
+	char sbox;
+	int k;
+	for (k = 0; k < 8; k++) {
+		//sbox = getSixBits(result, k);
+		// i row     = first and last bit represent 2bit number
+		// j column  = middle 4 bits represent 4bit number
+		//value = getValue(SBOX, i, j);
+	}
 
 	return result;
 }
 
-__int64 DESEncrypter::decryptBlock(__int64 encryptedMsg) {
-	__int64 result = 0;
+unsigned __int64 DESEncrypter::encryptBlock(unsigned __int64 plainMsg) {
+	unsigned __int64 result = 0;
+
+	// initial msg permute
+	unsigned __int64 work = permuteKey(plainMsg, INITIAL_P, 64, 64);
+
+	// split msg in half
+	unsigned __int32 lefts[16];
+	lefts[0] = work >> 31;
+	unsigned __int32 rights[16];
+	rights[0]= work;
+
+	int i;
+	for (i = 1; i < 16; i++) {
+		lefts[i] = rights[i-1];
+		rights[i] = lefts[i-1] + efunc(rights[i-1], keys[i]);
+	}
+
+	// run function f on 32bit msg and 48 bit key
+
+	// for (int i = 0; i < 16; i++)
+	// Li = Ri-1
+	// Ri = Li-1 + f(Ri-1, Ki)
+
+	// final 
+
+	// function f
+	// 32bits = expand(Ri-1)
+	// B1B2B3B4B5B6B7B8 = 32bits XOR Ki
+	// 32bit = S1(B1) S2(B2) S3(B3) S4(B4) S5(B5) S6(B6) S7(B7) S8(B8)
+	// 32bit = permute(32bit, P)
+
+	
+
+	return result;
+}
+
+unsigned __int64 DESEncrypter::decryptBlock(unsigned __int64 encryptedMsg) {
+	unsigned __int64 result = 0;
 
 	return result;
 }
