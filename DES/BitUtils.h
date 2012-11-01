@@ -3,7 +3,7 @@ class BitUtils
 {
 public:
 	unsigned __int64 toggleEndian(unsigned __int64);
-	unsigned __int64 setBit(unsigned __int64, int);
+	unsigned __int64 setBitFromRight(unsigned __int64, int);
 	unsigned __int64 setBitFromLeft(unsigned __int64, int);
 	unsigned __int64 unsetBit(unsigned __int64, int);
 	unsigned __int64 unsetBitFromLeft(unsigned __int64, int);

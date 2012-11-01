@@ -9,7 +9,7 @@ unsigned __int64 DESEncrypter::permuteKey(unsigned __int64 key, const short tabl
 	for (i = 0; i < lengthOut; i++) {
 		int whichBit = table[i];
 		//printf("TABLE INDEX: %d   ", whichBit);
-		char bit = bitUtils.checkBitFromLeft(key, whichBit);
+		char bit = bitUtils.checkBitFromLeft(bigEndianKey, whichBit);
 		//printf("   bitcheck: %d   \n", bit);
 		//printf("\toriginal %d bit:   %d\n", i, bitUtils.checkBitFromLeft(key, i));
 		if (bit) { result = bitUtils.setBitFromLeft(result, i); }
@@ -58,18 +58,85 @@ void DESEncrypter::createSubkeys(unsigned __int64 key) {
 	}
 }
 
-unsigned __int64 efunc(unsigned __int32 msg, unsigned __int64 key) {
+int DESEncrypter::getColumn(unsigned char sixBits) {
+	int result = 0;
+
+	// TODO
+	// (0 index)
+
+	// get 1st - set as 0th from right
+	if (bitUtils.checkBitFromRight(sixBits, 1)) {
+		bitUtils.setBitFromRight(result, 0);
+	}
+	// get 2nd - set as 1st from right
+	if (bitUtils.checkBitFromRight(sixBits, 2)) {
+		bitUtils.setBitFromRight(result, 1);
+	}
+	// get 3rd - set as 2nd from right
+	if (bitUtils.checkBitFromRight(sixBits, 3)) {
+		bitUtils.setBitFromRight(result, 2);
+	}
+	// get 4th - set as 3rd from right
+	if (bitUtils.checkBitFromRight(sixBits, 4)) {
+		bitUtils.setBitFromRight(result, 3);
+	}
+
+	return result;
+}
+
+int DESEncrypter::getRow(unsigned char sixBits) {
+	int result = 0;
+
+	// TODO 
+	// get first bit(0th) - set as 2nd from right in result
+	if (bitUtils.checkBitFromRight(sixBits, 0)) {
+		bitUtils.setBitFromRight(result, 0);
+	}
+	// get last bit(5th) - set as 1st from right in result
+	if (bitUtils.checkBitFromRight(sixBits, 5)) {
+		bitUtils.setBitFromRight(result, 2);
+	}
+
+	return result;
+}
+
+// Actually returns 8 bits but we just don't use the first 2
+unsigned char DESEncrypter::getSixBits(unsigned __int64 data, int group) {
+	// data is 48 bits - 00..00data
+	unsigned char result = 0;
+
+	// TODO
+	unsigned char sixBits[8];
+
+	int i;
+	for (i = 0; i < 8; i++) {
+		unsigned char bits = data >> (8 * i);
+		sixBits[i] = bits;
+	}
+
+	return result;
+}
+
+unsigned __int64 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key) {
 	unsigned __int64 result = 0;
+
+	// result should be 0000..0000msg
 	result = msg << 31;
+	// result should be msg0000..0000
 
 	result = permuteKey(result, SELECT, 32, 48);
+	// result should now be  expandedBits0000..0000
+
 	result = result ^ key;
 
 	// FIND row i and col j 
-	char sbox;
+	unsigned char sbox;
 	int k;
 	for (k = 0; k < 8; k++) {
-		//sbox = getSixBits(result, k);
+		sbox = getSixBits(result, k);
+
+		int col = getColumn(sbox);
+		int row = getRow(sbox);
 		// i row     = first and last bit represent 2bit number
 		// j column  = middle 4 bits represent 4bit number
 		//value = getValue(SBOX, i, j);
