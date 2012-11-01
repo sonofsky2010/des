@@ -116,7 +116,7 @@ unsigned char * DESEncrypter::getSixBits(unsigned __int64 data, int group) {
 
 unsigned __int64 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key) {
 	unsigned __int64 result = 0;
-	unsigned __int32 total;
+	unsigned __int32 total = 0;
 
 	// result should be 0000..0000msg
 	result = msg << 31;
@@ -139,12 +139,8 @@ unsigned __int64 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key)
 
 		int col = getColumn(*sbox);
 		int row = getRow(*sbox);
-		//// i row     = first and last bit represent 2bit number
-		//// j column  = middle 4 bits represent 4bit number
-
-		//value = getValue(SBOX, i, j);
 		
-		switch (k) {
+		/*switch (k) {
 		case 0:
 			sboxResult = S1[row][col];
 			break;
@@ -169,10 +165,10 @@ unsigned __int64 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key)
 		case 7:
 			sboxResult = S8[row][col];
 			break;
-		default: 
 		};
 
 		total += sboxResult;
+		*/
 	}
 
 	total = permuteKey(total, PERMUTE, 32, 32);
@@ -196,6 +192,13 @@ unsigned __int64 DESEncrypter::encryptBlock(unsigned __int64 plainMsg) {
 		lefts[i] = rights[i-1];
 		rights[i] = lefts[i-1] + efunc(rights[i-1], keys[i]);
 	}
+
+	// use the final iteration
+	result = rights[16] << 32;
+	result += lefts[16];
+
+	// final permutation of message;
+	result = permuteKey(result, FINAL_P, 64, 64);
 	
 	return result;
 }
