@@ -2,7 +2,7 @@
 #include "DESEncrypter.h"
 
 unsigned __int64 DESEncrypter::permuteKey(unsigned __int64 key, const short table[], int lengthIn, int lengthOut) {
-	unsigned __int64 bigEndianKey = bitUtils.toggleEndian(key);
+	unsigned __int64 bigEndianKey = key; //bitUtils.toggleEndian(key);
 	unsigned __int64 result = 0;
 	//printf("KEY: %llx\n", key);
 	int i;
@@ -101,11 +101,8 @@ int DESEncrypter::getRow(unsigned char sixBits) {
 }
 
 // Actually returns 8 bits but we just don't use the first 2
-unsigned char DESEncrypter::getSixBits(unsigned __int64 data, int group) {
+unsigned char * DESEncrypter::getSixBits(unsigned __int64 data, int group) {
 	// data is 48 bits - 00..00data
-	unsigned char result = 0;
-
-	// TODO
 	unsigned char sixBits[8];
 
 	int i;
@@ -114,34 +111,71 @@ unsigned char DESEncrypter::getSixBits(unsigned __int64 data, int group) {
 		sixBits[i] = bits;
 	}
 
-	return result;
+	return sixBits;
 }
 
 unsigned __int64 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key) {
 	unsigned __int64 result = 0;
+	unsigned __int32 total;
 
 	// result should be 0000..0000msg
 	result = msg << 31;
 	// result should be msg0000..0000
 
+	// expand message half to 48 bits
 	result = permuteKey(result, SELECT, 32, 48);
 	// result should now be  expandedBits0000..0000
+	result = result >> 16;
+	// result should now be 0000..0000expandedBits
 
+	// 0000..0000expandedBits XOR 0000..0000key
 	result = result ^ key;
 
 	// FIND row i and col j 
-	unsigned char sbox;
+	unsigned char *sbox, sboxResult;
 	int k;
 	for (k = 0; k < 8; k++) {
 		sbox = getSixBits(result, k);
 
-		int col = getColumn(sbox);
-		int row = getRow(sbox);
-		// i row     = first and last bit represent 2bit number
-		// j column  = middle 4 bits represent 4bit number
+		int col = getColumn(*sbox);
+		int row = getRow(*sbox);
+		//// i row     = first and last bit represent 2bit number
+		//// j column  = middle 4 bits represent 4bit number
+
 		//value = getValue(SBOX, i, j);
+		
+		switch (k) {
+		case 0:
+			sboxResult = S1[row][col];
+			break;
+		case 1:
+
+			break;
+		case 2:
+			sboxResult = S3[row][col];
+			break;
+		case 3:
+			sboxResult = S4[row][col];
+			break;
+		case 4:
+			sboxResult = S5[row][col];
+			break;
+		case 5:
+			sboxResult = S6[row][col];
+			break;
+		case 6:
+			sboxResult = S7[row][col];
+			break;
+		case 7:
+			sboxResult = S8[row][col];
+			break;
+		default: 
+		};
+
+		total += sboxResult;
 	}
 
+	total = permuteKey(total, PERMUTE, 32, 32);
 	return result;
 }
 
@@ -162,23 +196,7 @@ unsigned __int64 DESEncrypter::encryptBlock(unsigned __int64 plainMsg) {
 		lefts[i] = rights[i-1];
 		rights[i] = lefts[i-1] + efunc(rights[i-1], keys[i]);
 	}
-
-	// run function f on 32bit msg and 48 bit key
-
-	// for (int i = 0; i < 16; i++)
-	// Li = Ri-1
-	// Ri = Li-1 + f(Ri-1, Ki)
-
-	// final 
-
-	// function f
-	// 32bits = expand(Ri-1)
-	// B1B2B3B4B5B6B7B8 = 32bits XOR Ki
-	// 32bit = S1(B1) S2(B2) S3(B3) S4(B4) S5(B5) S6(B6) S7(B7) S8(B8)
-	// 32bit = permute(32bit, P)
-
 	
-
 	return result;
 }
 
