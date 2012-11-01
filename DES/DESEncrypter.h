@@ -91,13 +91,14 @@ const short int S8[4][16] = {
 class DESEncrypter
 {
 private:
-	BitUtils bitUtils;			// utility class for handling bit manipulation
-	__int64 keys[16];			// holds final keys	
-	__int64 permuteKey(__int64, const short[], int lengthIn, int lengthOut);
-	void createSubkeys(__int64);
+	BitUtils bitUtils;					// utility class for handling bit manipulation
+	__int64 keys[16];					// holds final keys	
+	unsigned __int64 permuteKey(unsigned __int64, const short[], int lengthIn, int lengthOut);
+	void initialKeyPermute(unsigned __int64);
+	void createSubkeys(unsigned __int64);
 public:
-	__int64 originalKey;		// holds original 64-bit key
-	DESEncrypter(__int64);
+	unsigned __int64 originalKey;		// holds original 64-bit key
+	DESEncrypter(unsigned __int64);
 	~DESEncrypter(void);
 	__int64 encryptBlock(__int64);
 	__int64 decryptBlock(__int64);
