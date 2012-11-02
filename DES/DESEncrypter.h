@@ -96,7 +96,7 @@ private:
 	unsigned __int64 permuteKey(unsigned __int64, const short[], int lengthIn, int lengthOut);
 	void initialKeyPermute(unsigned __int64);
 	void createSubkeys(unsigned __int64);
-	unsigned __int64 efunc(unsigned __int32, unsigned __int64);
+	unsigned __int32 efunc(unsigned __int32, unsigned __int64);
 	int getColumn(unsigned char);
 	int getRow(unsigned char);
 	unsigned char * getSixBits(unsigned __int64, int);

@@ -120,10 +120,10 @@ int _tmain(int argc, char *argv[])
 	DESEncrypter des = DESEncrypter::DESEncrypter(desKey);
 	
 	unsigned __int64 test64 = 0;
-	char *input = "abcdefghijklmnopqrstuvwxyz";
+	char *input = "The Quick Brown Fox Jumped Over The Fence";
 	int i;
 	for (i = 0; i < 26; i++) {
-		test64 << 8;
+		test64 = test64 << 8;
 		test64 += *(input+i);
 	}
 	

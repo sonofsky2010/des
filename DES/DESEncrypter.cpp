@@ -51,10 +51,10 @@ void DESEncrypter::createSubkeys(unsigned __int64 key) {
 			unsigned char bit = bitUtils.checkBitFromLeft(concatkey, whichPlace);
 			if (bit) {
 				concatkey = bitUtils.setBitFromLeft(concatkey, 16+j);
+				// 00..00concatKey
 			}
 		}
 		keys[i] = concatkey;
-
 	}
 }
 
@@ -100,38 +100,31 @@ int DESEncrypter::getRow(unsigned char sixBits) {
 	return result;
 }
 
-unsigned __int64 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key) {
-	unsigned __int32 result = 0;
-	unsigned __int32 total = 0;
-
-	// result should be 0000..0000msg
-	//result = msg;
+unsigned __int32 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key) {
+	unsigned __int32 result = 0, 
+					 total = 0;
 
 	// expand message half to 48 bits
-	//result = permuteKey(result, SELECT, 32, 48);
-
 	int i;
 	for (i = 0; i < 48; i++) {
 		unsigned char whichPlace = SELECT[i];
 		unsigned char bit = ( 1 &( msg >> (32-whichPlace)) );	// checkBitFromLeft32
 		if (bit) {
-			result = (msg | (1i64<<(32-i)));
-			//result = bitUtils.setBitFromLeft32(result, i);
+			result = (msg | (1<<(32-i)));						// setBitFromLeft32
 		}
 	}
 	// result should now be  expandedBits0000..0000
-	// result = result >> 16;
+
+	result = result >> 16;
 	// result should now be 0000..0000expandedBits
 
 	// 0000..0000expandedBits XOR 0000..0000key
-
-	// WHAT FORM IS KEY IN? 0000key or key0000???
-	result = result ^ key;
+	result = (result ^ key);
 
 	// FIND row i and col j 
 	unsigned char sbox, sboxResult;
 	int k;
-	unsigned char sboxes[8] = {0};
+	unsigned char sboxes[8];
 	for (k = 0; k < 8; k++) {
 		//sbox = getSixBits(result, k);
 		sbox = result >> (8 * k);
@@ -165,23 +158,24 @@ unsigned __int64 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key)
 			break;
 		};
 
-		total = total << 4;
 		total += sboxResult;	
+		total = total << 4;
 	}
 
+	// permute
+	unsigned __int32 result2 = 0;
 	int m;
 	for (m = 0; m < 32; m++) {
 		unsigned char whichPlace = PERMUTE[m];
 		unsigned char bit = ( 1 &( msg >> (32-whichPlace)) );
 		if (bit) {
-			result = (result | (1i64<<(32-i)));
+			result2 = (result | (1<<(32-i)));
 		}
 	}
-	return result;
+	return result2;
 }
 
 unsigned __int64 DESEncrypter::encryptBlock(unsigned __int64 plainMsg) {
-	printf("plainMsg: %llx\n", plainMsg);
 	plainMsg = bitUtils.toggleEndian(plainMsg);
 	unsigned __int64 result = 0;
 
@@ -196,38 +190,34 @@ unsigned __int64 DESEncrypter::encryptBlock(unsigned __int64 plainMsg) {
 		}
 	}
 
-	printf("plainMsg initial-permutation: %llx\n", work);	// I THINK THIS IS WRONG?
-
 	// split msg in half
-	unsigned __int32 lefts[16];
-	lefts[0] = work >> 32;
-	printf("plainMsg left: %lx\n", lefts[0]);
 	unsigned __int32 rights[16];
 	rights[0]= work;
-	printf("plainMsg right: %lx\n", rights[0]);
 
+	unsigned __int32 lefts[16];
+	lefts[0] = work >> 32;
+
+	// function
 	int i;
 	for (i = 1; i < 16; i++) {
 		lefts[i] = rights[i-1];
-		rights[i] = lefts[i-1] + efunc(rights[i-1], keys[i]);
+		rights[i] = (lefts[i-1] ^ (efunc(rights[i-1], keys[i])));
 	}
 
 	// use the final iteration	
-	result += lefts[16];
+	result = (result | lefts[15]);
 	result = result << 32;
-	result += rights[16];
-
+	result = result | rights[15];
+	
 	// final permutation of message
 	unsigned __int64 result2 = 0;
 	int k;
 	for (k = 0; k < 64; k++) {
-		char whichPlace = FINAL_P[k];
-		
+		unsigned char whichPlace = FINAL_P[k];
 		unsigned char bit = bitUtils.checkBitFromLeft(result, whichPlace-1);
 		if (bit) {
 			result2 = bitUtils.setBitFromLeft(result2, k);
 		}
-		//printf("WHICH BIT? %d    BIT? %d\n", whichPlace, bit);
 	}
 
 	result2 = bitUtils.toggleEndian(result2);
@@ -242,40 +232,45 @@ unsigned __int64 DESEncrypter::decryptBlock(unsigned __int64 encryptedMsg) {
 	unsigned __int64 work = 0;
 	int j;
 	for (j = 0; j < 64; j++) {
-		char whichPlace = INITIAL_P[j];
-		unsigned bit = bitUtils.checkBitFromLeft(encryptedMsg, whichPlace-1);
+		unsigned char whichPlace = INITIAL_P[j];
+		unsigned char bit = bitUtils.checkBitFromLeft(encryptedMsg, whichPlace-1);
 		if (bit) {
 			work = bitUtils.setBitFromLeft(work, j);
 		}
 	}
 
 	// split msg in half
-	unsigned __int32 lefts[16];
-	lefts[0] = work >> 31;
 	unsigned __int32 rights[16];
 	rights[0]= work;
 
+	unsigned __int32 lefts[16];
+	lefts[0] = work >> 32;
+
+	// function
 	int i;
-	for (i = 15; i > 0; i--) {
+	for (i = 1; i < 16; i++) {
 		lefts[i] = rights[i-1];
-		rights[i] = lefts[i-1] + efunc(rights[i-1], keys[i]);
+		rights[i] = (lefts[i-1] ^ (efunc(rights[i-1], keys[16-i])));
 	}
 
-	// use the final iteration
-	result += lefts[16];
+	// use the final iteration	
+	result = (result | lefts[15]);
 	result = result << 32;
-	result += rights[16];
-
-	// final permutation of message;
+	result = result | rights[15];
+	
+	// final permutation of message
 	unsigned __int64 result2 = 0;
 	int k;
 	for (k = 0; k < 64; k++) {
 		unsigned char whichPlace = FINAL_P[k];
-		unsigned char bit = bitUtils.checkBitFromLeft(result, whichPlace - 1);
+		unsigned char bit = bitUtils.checkBitFromLeft(result, whichPlace-1);
+		if (bit) {
+			result2 = bitUtils.setBitFromLeft(result2, k);
+		}
 	}
-	
-	result = bitUtils.toggleEndian(result);
-	return result;
+
+	result2 = bitUtils.toggleEndian(result2);
+	return result2;
 }
 
 DESEncrypter::DESEncrypter(unsigned __int64 key) {
