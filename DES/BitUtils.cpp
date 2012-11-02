@@ -15,11 +15,12 @@ unsigned __int64 BitUtils::toggleEndian(unsigned __int64 data) {
 }
 
 unsigned __int64 BitUtils::setBitFromRight(unsigned __int64 data, int place) {
-	return (data | 1i64 << place);
+	return (data | (1i64 << place));
 }
+
 /* sets the bit (1) in 'place' in the given byte */
 unsigned __int64 BitUtils::setBitFromLeft(unsigned __int64 data, int place) {
-	return (data | 1i64<<(63-place));
+	return (data | (1i64<<(63-place)));
 }
 
 /* clears the bit (0) in 'place' in the given byte */
@@ -29,23 +30,23 @@ unsigned __int64 BitUtils::unsetBitFromLeft(unsigned __int64 data, int place) {
 
 /* toggles the bit in 'place' in the given byte */
 unsigned __int64 BitUtils::toggleBitFromLeft(unsigned __int64 data, int place) {
-	return (data ^ 1i64<<(63-place));
+	return (data ^ (1i64<<(63-place)));
 }
 
 /* returns 0 if the bit in 'place' in the given byte is 0, otherwise it returns
  * >0 and the bit is a 1 
  */
 char BitUtils::checkBitFromLeft(unsigned __int64 data, int place) {
-	return ( 1 & data >> (64-place) );
+	return ( 1 &( data >> (64-place)) );
 	//return (data & 1i64<<(place));
 }
 
 char BitUtils::checkBitFromRight(unsigned __int64 data, int place) {
-	return (1 & data >> place);
+	return (1 & (data >> place));
 }
 
-unsigned __int32 BitUtils::rollLeft32(unsigned __int32 data, int amount) {	
-	return (data >> amount | data << (64-amount));
+unsigned __int32 BitUtils::rollLeft28(unsigned __int32 data, int amount) {	
+	return (data >> amount | data << (28-amount));
 }
 
 BitUtils::BitUtils(void)

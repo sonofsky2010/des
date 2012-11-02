@@ -118,7 +118,20 @@ int _tmain(int argc, char *argv[])
 	printf("KEY: %llx\n", desKey);
 	// TODO - DES
 	DESEncrypter des = DESEncrypter::DESEncrypter(desKey);
-
+	
+	unsigned __int64 test64 = 0;
+	char *input = "abcdefghijklmnopqrstuvwxyz";
+	int i;
+	for (i = 0; i < 26; i++) {
+		test64 << 8;
+		test64 += *(input+i);
+	}
+	
+	printf("Original: %llx\n", test64);
+	unsigned __int64 e = des.encryptBlock(test64);
+	printf("Encrpyted: %llx\n", e);
+	unsigned __int64 d = des.decryptBlock(e);
+	printf("Decrypted: %llx\n", d);
 
 
 	return 0;

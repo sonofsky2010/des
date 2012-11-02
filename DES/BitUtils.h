@@ -9,7 +9,7 @@ public:
 	unsigned __int64 unsetBitFromLeft(unsigned __int64, int);
 	unsigned __int64 toggleBitFromLeft(unsigned __int64, int);
 	unsigned __int64 rollLeft(unsigned __int64, int);
-	unsigned __int32 rollLeft32(unsigned __int32, int);
+	unsigned __int32 rollLeft28(unsigned __int32, int);
 	char checkBitFromRight(unsigned __int64, int);
 	char checkBitFromLeft(unsigned __int64, int);
 	BitUtils(void);
