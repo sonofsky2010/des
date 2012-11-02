@@ -106,9 +106,9 @@ unsigned __int32 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key)
 	int i;
 	for (i = 0; i < 48; i++) {
 		unsigned char whichPlace = SELECT[i];
-		unsigned char bit = ( 1 &( msg >> (32-whichPlace)) );	// checkBitFromLeft32
+		unsigned char bit = ( 1 &( msg >> (31-whichPlace)) );	// checkBitFromLeft32
 		if (bit) {
-			result = (msg | (1<<(32-i)));						// setBitFromLeft32
+			result = (msg | (1<<(31-i)));						// setBitFromLeft32
 		}
 	}
 	// result should now be  expandedBits0000..0000
@@ -165,9 +165,9 @@ unsigned __int32 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key)
 	int m;
 	for (m = 0; m < 32; m++) {
 		unsigned char whichPlace = PERMUTE[m];
-		unsigned char bit = ( 1 &( msg >> (32-whichPlace)) );
+		unsigned char bit = ( 1 &( msg >> (31-whichPlace)) );
 		if (bit) {
-			result2 = (result | (1<<(32-i)));
+			result2 = (result | (1<<(31-i)));
 		}
 	}
 	return result2;
@@ -189,23 +189,25 @@ unsigned __int64 DESEncrypter::encryptBlock(unsigned __int64 plainMsg) {
 	}
 
 	// split msg in half
-	unsigned __int32 rights[16];
+	unsigned __int32 rights[17];
 	rights[0]= work;
 
-	unsigned __int32 lefts[16];
+	unsigned __int32 lefts[17];
 	lefts[0] = work >> 32;
 
 	// function
 	int i;
-	for (i = 1; i < 16; i++) {
+	for (i = 1; i <= 16; i++) {
 		lefts[i] = rights[i-1];
 		rights[i] = (lefts[i-1] ^ (efunc(rights[i-1], keys[i])));
+		printf("rights %d: %lx\n", i, rights[i]);
+		printf("lefts  %d: %lx\n", i, lefts[i]);
 	}
 
 	// use the final iteration	
-	result = (result | lefts[15]);
+	result = (result | lefts[16]);
 	result = result << 32;
-	result = result | rights[15];
+	result = result | rights[16];
 	
 	// final permutation of message
 	unsigned __int64 result2 = 0;
@@ -238,23 +240,23 @@ unsigned __int64 DESEncrypter::decryptBlock(unsigned __int64 encryptedMsg) {
 	}
 
 	// split msg in half
-	unsigned __int32 rights[16];
+	unsigned __int32 rights[17];
 	rights[0]= work;
 
-	unsigned __int32 lefts[16];
+	unsigned __int32 lefts[17];
 	lefts[0] = work >> 32;
 
 	// function
 	int i;
-	for (i = 1; i < 16; i++) {
+	for (i = 1; i <= 16; i++) {
 		lefts[i] = rights[i-1];
-		rights[i] = (lefts[i-1] ^ (efunc(rights[i-1], keys[16-i])));
+		rights[i] = (lefts[i-1] ^ (efunc(rights[i-1], keys[17-i])));
 	}
 
 	// use the final iteration	
-	result = (result | lefts[15]);
+	result = (result | lefts[16]);
 	result = result << 32;
-	result = result | rights[15];
+	result = result | rights[16];
 	
 	// final permutation of message
 	unsigned __int64 result2 = 0;

@@ -8,6 +8,7 @@
 #include "stdafx.h"
 #include "DESEncrypter.h"
 
+#include <cstdlib>
 #include <stdio.h>
 #include <string.h>
 
@@ -126,6 +127,16 @@ int _tmain(int argc, char *argv[])
 		test64  = test64 | *(input+i);
 		test64 = test64 << 8;
 	}
+
+	unsigned __int64 test2 = test64;
+	printf("test2 = %llx\n", test2);
+	char *result = (char *) std::malloc(sizeof(char)*8);
+	for (i = 0; i < 8; i++) {
+		char c = test2;
+		*(result+i) = c;
+		test2 = test2 >> 8;
+	}
+	printf("FINAL RESULT = %s\n", result);
 	
 	printf("Original Message in hex: %llx\n", test64);
 	unsigned __int64 e = des.encryptBlock(test64);
@@ -133,6 +144,13 @@ int _tmain(int argc, char *argv[])
 	unsigned __int64 d = des.decryptBlock(e);
 	printf("Decrypted Message in hex: %llx\n", d);
 
+	result = (char *) std::malloc(sizeof(char)*8);
+	for (i = 0; i < 8; i++) {
+		char c = d;
+		*(result+i) = c;
+		d = d >> 8;
+	}
+	printf("FINAL RESULT = %s\n", result);
 
 	return 0;
 }

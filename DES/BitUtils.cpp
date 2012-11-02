@@ -37,8 +37,7 @@ unsigned __int64 BitUtils::toggleBitFromLeft(unsigned __int64 data, int place) {
  * >0 and the bit is a 1 
  */
 char BitUtils::checkBitFromLeft(unsigned __int64 data, int place) {
-	return ( 1 &( data >> (64-place)) );
-	//return (data & 1i64<<(place));
+	return ( 1 & (data >> (63-place)) );
 }
 
 char BitUtils::checkBitFromRight(unsigned __int64 data, int place) {
