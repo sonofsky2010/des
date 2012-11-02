@@ -24,6 +24,7 @@ void DESEncrypter::createSubkeys(unsigned __int64 key) {
 	cees[0] = left;
 	dees[0] = right;
 
+	// do shifts
 	int i;
 	for (i = 1; i < 16; i++) {
 		int shiftAmount;
@@ -60,8 +61,6 @@ void DESEncrypter::createSubkeys(unsigned __int64 key) {
 
 int DESEncrypter::getColumn(unsigned char sixBits) {
 	int result = 0;
-
-	// TODO
 	// (0 index)
 
 	// get 1st - set as 0th from right
@@ -87,7 +86,6 @@ int DESEncrypter::getColumn(unsigned char sixBits) {
 int DESEncrypter::getRow(unsigned char sixBits) {
 	int result = 0;
 
-	// TODO 
 	// get first bit(0th) - set as 2nd from right in result
 	if (bitUtils.checkBitFromRight(sixBits, 0)) {
 		bitUtils.setBitFromRight(result, 0);
@@ -158,7 +156,7 @@ unsigned __int32 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key)
 			break;
 		};
 
-		total += sboxResult;	
+		total = total | sboxResult;	
 		total = total << 4;
 	}
 
@@ -274,13 +272,11 @@ unsigned __int64 DESEncrypter::decryptBlock(unsigned __int64 encryptedMsg) {
 }
 
 DESEncrypter::DESEncrypter(unsigned __int64 key) {
-	printf("CONSTR KEY: %llx\n", key);
-	//originalKey = bitUtils.toggleEndian(key);
 	createSubkeys(key);
 	int i;
-	for (i = 0; i < 16; i++) {
+	/*for (i = 0; i < 16; i++) {
 		printf("final key %d = %llx\n", i, keys[i]);
-	}
+	}*/
 }
 
 

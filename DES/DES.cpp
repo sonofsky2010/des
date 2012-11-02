@@ -123,15 +123,15 @@ int _tmain(int argc, char *argv[])
 	char *input = "The Quick Brown Fox Jumped Over The Fence";
 	int i;
 	for (i = 0; i < 26; i++) {
+		test64  = test64 | *(input+i);
 		test64 = test64 << 8;
-		test64 += *(input+i);
 	}
 	
-	printf("Original: %llx\n", test64);
+	printf("Original Message in hex: %llx\n", test64);
 	unsigned __int64 e = des.encryptBlock(test64);
-	printf("Encrpyted: %llx\n", e);
+	printf("Encrpyted Message in hex: %llx\n", e);
 	unsigned __int64 d = des.decryptBlock(e);
-	printf("Decrypted: %llx\n", d);
+	printf("Decrypted Message in hex: %llx\n", d);
 
 
 	return 0;
