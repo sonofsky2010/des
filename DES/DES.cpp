@@ -17,6 +17,12 @@
 #include <sys/stat.h>
 #include <errno.h>
 
+struct dataNodeHead {
+	unsigned __int64 fileInfo;
+	int maxBlock;
+	struct dataNode *next;
+};
+
 struct dataNode {
 	unsigned __int64 data;
 	struct dataNode *next;
@@ -63,7 +69,7 @@ void debugDES(DESEncrypter des) {
  * Reads blocks of 64bit data from a file and stores them in a linked
  * list struct. returns the head. the first node contains the file size
  */
-struct dataNode readFile(char *filepath) {
+struct dataNodeHead readFile(char *filepath) {
 	// get file size
 	struct __stat64 fileStat;  
 	int err = _stat64(filepath, &fileStat); 
@@ -83,9 +89,8 @@ struct dataNode readFile(char *filepath) {
 		printf("Could not open file at %s\n", filepath);
 		exit(1);
 	}
-
-	struct dataNode result, 
-					*head = NULL, 
+	struct dataNodeHead result;
+	struct dataNode *head = NULL, 
 					*tmp = NULL, 
 					*current = NULL;
 	
@@ -96,6 +101,7 @@ struct dataNode readFile(char *filepath) {
 	else {
 		MAX_BLOCK = (fileSize % 8);
 	}
+	printf("MAX BLOCK 1: %d\n", MAX_BLOCK);
 
 	unsigned __int64 currentData = 0, currentBlock = 0;
 	while (currentBlock <= MAX_BLOCK) {
@@ -117,8 +123,9 @@ struct dataNode readFile(char *filepath) {
 	}
 	fclose(file);
 
-	result.data = fileSize;
+	result.fileInfo = fileSize;
 	result.next = head;
+	result.maxBlock = MAX_BLOCK;
 
 	printf("Done reading file\n");
 	return result;
@@ -127,24 +134,38 @@ struct dataNode readFile(char *filepath) {
 /* 
  * Writes out blocks of 64bit data to a file
  */
-void writeFile(char *filepath, struct dataNode start) {
-	printf("Writing file...\n");
+void writeFile(char *filepath, struct dataNodeHead start) {
+	printf("Writing file %s\n", filepath);
 	FILE *file;
-	fopen_s(&file, filepath, "rb");
+	fopen_s(&file, filepath, "w+b");
 
 	if (file == NULL) {
 		printf("Could not open file for writing at %s\n", filepath);
+		perror("The following error occured");
 		exit (1);
 	}
-	struct dataNode *current = &start;
-	while (current != NULL) {
-		printf("Writing file2...\n");
+	size_t wrote = fwrite(&(start.fileInfo), 8, 1, file);
+	printf("WROTE %u bytes\n", wrote);
+
+	int MAX_BLOCK = start.maxBlock,
+		currentBlock = 0;
+	printf("MAX %d\n", start.maxBlock);
+	struct dataNode *current = start.next;
+	while (currentBlock <= MAX_BLOCK) {
+
+
+		printf("___data: %llx\n", current->data);
 		fwrite(&(current->data), 8, 1, file);
 
-		current = current->next;
+		if (currentBlock < MAX_BLOCK) {
+			current = current->next;
+		}
+		currentBlock++;
 	}
-
 	printf("Done writing file\n");
+
+	fclose(file);
+	perror("The following error occured");
 }
 
 /*
@@ -152,17 +173,17 @@ void writeFile(char *filepath, struct dataNode start) {
  */
 void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) {
 
-	struct dataNode plainText = readFile(inputFile), 
-		*current, 
-		*newHead = (struct dataNode *) malloc(sizeof(struct dataNode)),
-		*newCurrent, 
-		*tmp = NULL;
-	current = &plainText;
+	struct dataNodeHead plainText = readFile(inputFile),
+						*newHead = (struct dataNodeHead *) malloc(sizeof(struct dataNodeHead));
+	struct dataNode *current, 
+					*newCurrent, 
+					*tmp = NULL;
+	current = plainText.next;
 
 	if (action == 'e') {
-		newHead = (struct dataNode *) malloc(sizeof(struct dataNode));
 		// TODO - adjust current->data to contain garbage on one side
-		newHead->data = des.encryptBlock(current->data);
+		newHead->fileInfo = des.encryptBlock(current->data);
+		newHead->maxBlock = plainText.maxBlock;
 		newHead->next = NULL;
 
 		current = current->next;
@@ -170,6 +191,8 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
 		while (current != NULL) {
 			unsigned __int64 encryptedMessage = des.encryptBlock(current->data);
 			newCurrent = (struct dataNode *) malloc(sizeof(struct dataNode));
+			newCurrent->next = NULL;
+			newCurrent->data = encryptedMessage;
 
 			// create new LL of encrypted data from LL of read-in data
 			if (newHead->next == NULL) {
@@ -184,15 +207,14 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
 		}
 	}
 	else if (action == 'd') {
-		newHead = (struct dataNode *) malloc(sizeof(struct dataNode));
 		// TODO - adjust current->data to contain garbage on one side
-		newHead->data = des.decryptBlock(current->data);
+		newHead->fileInfo = des.decryptBlock(current->data);
 		newHead->next = NULL;
 
 		current = current->next;
 
 		while (current != NULL) {
-			unsigned __int64 encryptedMessage = des.encryptBlock(current->data);
+			unsigned __int64 encryptedMessage = des.decryptBlock(current->data);
 			newCurrent = (struct dataNode *) malloc(sizeof(struct dataNode));
 
 			// create new LL of encrypted data from LL of read-in data
@@ -324,9 +346,9 @@ int _tmain(int argc, char *argv[])
 	// TODO - DES
 	DESEncrypter des = DESEncrypter::DESEncrypter(desKey);
 
-	debugDES(des);
+	//debugDES(des);
 
-	//desStuff(des, action, inputFile, outputFile);
+	desStuff(des, action, inputFile, outputFile);
 
 	return 0;
 }
