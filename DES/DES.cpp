@@ -12,6 +12,11 @@
 #include <stdio.h>
 #include <string.h>
 
+struct dataNode {
+	unsigned __int64 data;
+	struct dataNode *next;
+};
+
 /* Verifies that the key is legal. If it is surrounded in single quotes then it 
  * may contain any 8 ASCII characters. If it is not surrounded in quotes, then 
  * the key must contain 16 hex characters.
@@ -63,12 +68,12 @@ int verifyAction(int *action) {
 	int result = 0;
 	switch (*action) {
 	case 'E': 
-		*action = *action - 32;
+		*action = *action + 32;
 	case 'e':
 		printf("Encrypting...\n");
 		break;
 	case 'D':
-		*action = *action - 32;
+		*action = *action + 32;
 	case 'd':
 		printf("Decrypting...\n");
 		break;
@@ -102,7 +107,8 @@ int _tmain(int argc, char *argv[])
 	
 	// parse first arg - action
 	action = *argv[1];
-	//if (verifyAction(&action)) { return 1;}
+	if (verifyAction(&action)) { return 1;}
+	printf("action %c\n\n", action);
 
 	// parse second arg - 16 hex chars or 8 char string
 	key = argv[2];
@@ -119,11 +125,13 @@ int _tmain(int argc, char *argv[])
 	printf("KEY: %llx\n", desKey);
 	// TODO - DES
 	DESEncrypter des = DESEncrypter::DESEncrypter(desKey);
-	
+
+
+	/************  TEST  ************/
 	unsigned __int64 test64 = 0;
-	char *input = "The Quick Brown Fox Jumped Over The Fence";
+	char *input = "The Quick Brown Fox Jumped Over The Lazy Dog";
 	int i;
-	for (i = 0; i < 26; i++) {
+	for (i = 0; i < strlen(input); i++) {
 		test64  = test64 | *(input+i);
 		test64 = test64 << 8;
 	}
@@ -151,6 +159,34 @@ int _tmain(int argc, char *argv[])
 		d = d >> 8;
 	}
 	printf("FINAL RESULT = %s\n", result);
+	/************  TEST  ************/
+
+
+	struct dataNode plainText;
+	// TODO read in file
+
+	/*
+	if (action == 'e') {
+		// TODO 
+		// first block, right side should have file length - left side random garbage
+		// encrypt and write as first block
+		while (plainText != NULL) {
+			unsigned __int64 encryptedMessage = des.encryptBlock(plainText.data);
+			// TODO - write to file
+			plainText = plainText->next;
+		}
+	}
+	else if (action == 'd') {
+		// TODO 
+		// read first block, decrypt, right side should have file size - left side throw away
+		while (plainText != NULL) {
+			unsigned __int64 decryptedMessage = des.encryptBlock(plainText.data);
+			// TODO - write to file
+			plainText = plainText->next;
+		}
+	}
+	*/
+
 
 	return 0;
 }

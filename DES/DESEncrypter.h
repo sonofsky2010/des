@@ -97,8 +97,8 @@ private:
 	void initialKeyPermute(unsigned __int64);
 	void createSubkeys(unsigned __int64);
 	unsigned __int32 efunc(unsigned __int32, unsigned __int64);
-	int getColumn(unsigned char);
-	int getRow(unsigned char);
+	unsigned char getColumn(unsigned char);
+	unsigned char getRow(unsigned char);
 	unsigned char * getSixBits(unsigned __int64, int);
 public:
 	unsigned __int64 originalKey;				// holds original 64-bit key

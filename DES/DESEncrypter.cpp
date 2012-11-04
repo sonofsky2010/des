@@ -14,19 +14,25 @@ void DESEncrypter::createSubkeys(unsigned __int64 key) {
 			initialPermutedKey = bitUtils.setBitFromLeft(initialPermutedKey, 8+k);
 		}
 	}
-	// initialPermutedKey = 00..00initialPermutedKey
+	// 00..00initialPermutedKey
+	//printf("WHOLE OF KEY: %llx\n", initialPermutedKey);
+	unsigned __int32 right = 0;
+    right = initialPermutedKey;
+	
+	//printf("RIGHT SIDE OF KEY: %lx\n", right);
+	unsigned __int32 left = 0;
+	initialPermutedKey = initialPermutedKey >> 28;
+	left = initialPermutedKey;
+	//printf("LEFT SIDE OF KEY: %lx\n", left);
 
-	unsigned __int32 right = initialPermutedKey >> 32;
-	unsigned __int32 left = initialPermutedKey;
-
-	unsigned __int32 cees[16];
-	unsigned __int32 dees[16];
+	unsigned __int32 cees[17] = {0};
+	unsigned __int32 dees[17] = {0};
 	cees[0] = left;
 	dees[0] = right;
 
 	// do shifts
 	int i;
-	for (i = 1; i < 16; i++) {
+	for (i = 1; i <= 16; i++) {
 		int shiftAmount;
 		if ( i == 1 || i == 2 || i == 9 || i == 16) {
 			shiftAmount = 1;
@@ -40,7 +46,7 @@ void DESEncrypter::createSubkeys(unsigned __int64 key) {
 	}
 
 	// create the final keys
-	for (i = 0; i < 16; i++) {
+	for (i = 1; i <= 16; i++) {
 		__int64 concatkey = 0;
 		concatkey += cees[i];
 		concatkey = concatkey << 32;
@@ -59,77 +65,78 @@ void DESEncrypter::createSubkeys(unsigned __int64 key) {
 	}
 }
 
-int DESEncrypter::getColumn(unsigned char sixBits) {
-	int result = 0;
+unsigned char DESEncrypter::getColumn(unsigned char sixBits) {
+	unsigned char result = 0;
 	// (0 index)
 
 	// get 1st - set as 0th from right
 	if (bitUtils.checkBitFromRight(sixBits, 1)) {
-		bitUtils.setBitFromRight(result, 0);
+		result = bitUtils.setBitFromRight(result, 0);
 	}
 	// get 2nd - set as 1st from right
 	if (bitUtils.checkBitFromRight(sixBits, 2)) {
-		bitUtils.setBitFromRight(result, 1);
+		result = bitUtils.setBitFromRight(result, 1);
 	}
 	// get 3rd - set as 2nd from right
 	if (bitUtils.checkBitFromRight(sixBits, 3)) {
-		bitUtils.setBitFromRight(result, 2);
+		result = bitUtils.setBitFromRight(result, 2);
 	}
 	// get 4th - set as 3rd from right
 	if (bitUtils.checkBitFromRight(sixBits, 4)) {
-		bitUtils.setBitFromRight(result, 3);
+		result = bitUtils.setBitFromRight(result, 3);
 	}
 
 	return result;
 }
 
-int DESEncrypter::getRow(unsigned char sixBits) {
-	int result = 0;
+unsigned char DESEncrypter::getRow(unsigned char sixBits) {
+	unsigned char result = 0;
 
 	// get first bit(0th) - set as 2nd from right in result
 	if (bitUtils.checkBitFromRight(sixBits, 0)) {
-		bitUtils.setBitFromRight(result, 0);
+		result = bitUtils.setBitFromRight(result, 0);
 	}
 	// get last bit(5th) - set as 1st from right in result
 	if (bitUtils.checkBitFromRight(sixBits, 5)) {
-		bitUtils.setBitFromRight(result, 2);
+		result = bitUtils.setBitFromRight(result, 2);
 	}
 
 	return result;
 }
 
 unsigned __int32 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key) {
-	unsigned __int32 result = 0, 
-					 total = 0;
+	unsigned __int64 result = 0;
+	unsigned __int32 total = 0;
 
 	// expand message half to 48 bits
 	int i;
 	for (i = 0; i < 48; i++) {
 		unsigned char whichPlace = SELECT[i];
-		unsigned char bit = ( 1 &( msg >> (31-whichPlace)) );	// checkBitFromLeft32
+		unsigned char bit = ( 1 &( msg >> (31-whichPlace)) );	// checkBitFromLeft48
 		if (bit) {
-			result = (msg | (1<<(31-i)));						// setBitFromLeft32
+			result = (result | (1i64<<(63-i)));
 		}
 	}
 	// result should now be  expandedBits0000..0000
 
 	result = result >> 16;
 	// result should now be 0000..0000expandedBits
+	//printf("48BIT EXPANDED: %llx\n", result);
 
 	// 0000..0000expandedBits XOR 0000..0000key
 	result = (result ^ key);
 
-	// FIND row i and col j 
-	unsigned char sbox, sboxResult;
-	int k;
-	unsigned char sboxes[8];
-	for (k = 0; k < 8; k++) {
-		//sbox = getSixBits(result, k);
-		sbox = result >> (8 * k);
-		int col = getColumn(sbox);
-		int row = getRow(sbox);
-		
-		switch (k) {
+	// get 8 groups of 6 bytes
+	unsigned char sboxes[8], sboxResult, row, col;
+	for (i = 0; i < 8; i++) {
+		sboxResult = 0;
+		sboxes[i] = result >> (6*i);
+		col = getColumn(sboxes[i]);
+		row = getRow(sboxes[i]);
+
+		//printf("Row : %x\nCol : %x\n-----\n", row, col);
+
+		switch (i) {
 		case 0:
 			sboxResult = S1[row][col];
 			break;
@@ -155,19 +162,17 @@ unsigned __int32 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key)
 			sboxResult = S8[row][col];
 			break;
 		};
-
-		total = total | sboxResult;	
+		total = total | sboxResult;
 		total = total << 4;
 	}
-
+	
 	// permute
 	unsigned __int32 result2 = 0;
-	int m;
-	for (m = 0; m < 32; m++) {
-		unsigned char whichPlace = PERMUTE[m];
-		unsigned char bit = ( 1 &( msg >> (31-whichPlace)) );
+	for (i = 0; i < 32; i++) {
+		unsigned char whichPlace = PERMUTE[i];
+		unsigned char bit = ( 1 &( total >> (31-whichPlace)) );
 		if (bit) {
-			result2 = (result | (1<<(31-i)));
+			result2 = (result2 | (1<<(31-i)));
 		}
 	}
 	return result2;
@@ -200,14 +205,14 @@ unsigned __int64 DESEncrypter::encryptBlock(unsigned __int64 plainMsg) {
 	for (i = 1; i <= 16; i++) {
 		lefts[i] = rights[i-1];
 		rights[i] = (lefts[i-1] ^ (efunc(rights[i-1], keys[i])));
-		printf("rights %d: %lx\n", i, rights[i]);
-		printf("lefts  %d: %lx\n", i, lefts[i]);
+		//printf("rights %d: %lx\n", i, rights[i]);
+		//printf("lefts  %d: %lx\n", i, lefts[i]);
 	}
 
-	// use the final iteration	
-	result = (result | lefts[16]);
+	// use the final iteration AND reverse Left/Right!
+	result = (result | rights[16]);
 	result = result << 32;
-	result = result | rights[16];
+	result = result | lefts[16];
 	
 	// final permutation of message
 	unsigned __int64 result2 = 0;
@@ -251,12 +256,14 @@ unsigned __int64 DESEncrypter::decryptBlock(unsigned __int64 encryptedMsg) {
 	for (i = 1; i <= 16; i++) {
 		lefts[i] = rights[i-1];
 		rights[i] = (lefts[i-1] ^ (efunc(rights[i-1], keys[17-i])));
+		//printf("rights %d: %lx\n", i, rights[i]);
+		//printf("lefts  %d: %lx\n", i, lefts[i]);
 	}
 
-	// use the final iteration	
-	result = (result | lefts[16]);
+	// use the final iteration AND reverse Left/Right!
+	result = (result | rights[16]);
 	result = result << 32;
-	result = result | rights[16];
+	result = result | lefts[16];
 	
 	// final permutation of message
 	unsigned __int64 result2 = 0;
@@ -276,9 +283,9 @@ unsigned __int64 DESEncrypter::decryptBlock(unsigned __int64 encryptedMsg) {
 DESEncrypter::DESEncrypter(unsigned __int64 key) {
 	createSubkeys(key);
 	int i;
-	/*for (i = 0; i < 16; i++) {
+	for (i = 1; i <= 16; i++) {
 		printf("final key %d = %llx\n", i, keys[i]);
-	}*/
+	}
 }
 
 
