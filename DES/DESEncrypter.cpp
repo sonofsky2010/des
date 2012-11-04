@@ -70,20 +70,25 @@ unsigned char DESEncrypter::getColumn(unsigned char sixBits) {
 	// (0 index)
 
 	// get 1st - set as 0th from right
-	if (bitUtils.checkBitFromRight(sixBits, 1)) {
-		result = bitUtils.setBitFromRight(result, 0);
+	
+	if (sixBits & ( 1 << 1 )) {
+		result = result | (1 << 0);
+		//result = bitUtils.setBitFromRight(result, 0);
 	}
 	// get 2nd - set as 1st from right
-	if (bitUtils.checkBitFromRight(sixBits, 2)) {
-		result = bitUtils.setBitFromRight(result, 1);
+	if (sixBits & ( 1 << 2 )) {
+		result = result | (1 << 1);
+		//result = bitUtils.setBitFromRight(result, 1);
 	}
 	// get 3rd - set as 2nd from right
-	if (bitUtils.checkBitFromRight(sixBits, 3)) {
-		result = bitUtils.setBitFromRight(result, 2);
+	if (sixBits & ( 1 << 3 )) {
+		result = result | (1 << 2);
+		//result = bitUtils.setBitFromRight(result, 2);
 	}
 	// get 4th - set as 3rd from right
-	if (bitUtils.checkBitFromRight(sixBits, 4)) {
-		result = bitUtils.setBitFromRight(result, 3);
+	if (sixBits & ( 1 << 4 )) {
+		result = result | (1 << 3);
+		//result = bitUtils.setBitFromRight(result, 3);
 	}
 
 	return result;
@@ -93,12 +98,12 @@ unsigned char DESEncrypter::getRow(unsigned char sixBits) {
 	unsigned char result = 0;
 
 	// get first bit(0th) - set as 2nd from right in result
-	if (bitUtils.checkBitFromRight(sixBits, 0)) {
-		result = bitUtils.setBitFromRight(result, 0);
+	if (sixBits & ( 1 << 0 )) {
+		result = result | (1 << 0);
 	}
 	// get last bit(5th) - set as 1st from right in result
-	if (bitUtils.checkBitFromRight(sixBits, 5)) {
-		result = bitUtils.setBitFromRight(result, 2);
+	if (sixBits & ( 1 << 5 )) {
+		result = result | (1 << 1);
 	}
 
 	return result;

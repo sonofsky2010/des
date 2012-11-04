@@ -8,14 +8,208 @@
 #include "stdafx.h"
 #include "DESEncrypter.h"
 
+#include <iostream>
 #include <cstdlib>
 #include <stdio.h>
 #include <string.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <errno.h>
 
 struct dataNode {
 	unsigned __int64 data;
 	struct dataNode *next;
 };
+
+
+void debugDES(DESEncrypter des) {
+	/************  TEST  ************/
+	unsigned __int64 test64 = 0;
+	char *input = "The Quick Brown Fox Jumped Over The Lazy Dog";
+	int i;
+	for (i = 0; i < strlen(input); i++) {
+		test64  = test64 | *(input+i);
+		test64 = test64 << 8;
+	}
+
+	unsigned __int64 test2 = test64;
+	printf("test2 = %llx\n", test2);
+	char *result = (char *) std::malloc(sizeof(char)*8);
+	for (i = 0; i < 8; i++) {
+		char c = test2;
+		*(result+i) = c;
+		test2 = test2 >> 8;
+	}
+	printf("FINAL RESULT = %s\n", result);
+	
+	printf("Original Message in hex: %llx\n", test64);
+	unsigned __int64 e = des.encryptBlock(test64);
+	printf("Encrpyted Message in hex: %llx\n", e);
+	unsigned __int64 d = des.decryptBlock(e);
+	printf("Decrypted Message in hex: %llx\n", d);
+
+	result = (char *) std::malloc(sizeof(char)*8);
+	for (i = 0; i < 8; i++) {
+		char c = d;
+		*(result+i) = c;
+		d = d >> 8;
+	}
+	printf("FINAL RESULT = %s\n", result);
+	/************  TEST  ************/
+}
+
+/* 
+ * Reads blocks of 64bit data from a file and stores them in a linked
+ * list struct. returns the head. the first node contains the file size
+ */
+struct dataNode readFile(char *filepath) {
+	// get file size
+	struct __stat64 fileStat;  
+	int err = _stat64(filepath, &fileStat); 
+	if (0 != err) {
+		printf("FILEPATH: %s\n", filepath);
+		perror("The following error occured");
+		exit(1);			// non-zero err indicates an error
+	}
+	__int64 fileSize = (int) (fileStat.st_size & 0x000000007fffffff);
+	printf("FILESIZE: %llx\n", fileSize);
+
+	// open file for reading
+	FILE *file;
+	fopen_s(&file, filepath, "rb");
+
+	if (file == NULL) {
+		printf("Could not open file at %s\n", filepath);
+		exit(1);
+	}
+
+	struct dataNode result, 
+					*head = NULL, 
+					*tmp = NULL, 
+					*current = NULL;
+	
+	__int64 MAX_BLOCK;
+	if (fileSize % 8 != 0) {
+		MAX_BLOCK = (fileSize % 8) + 1;
+	}
+	else {
+		MAX_BLOCK = (fileSize % 8);
+	}
+
+	unsigned __int64 currentData = 0, currentBlock = 0;
+	while (currentBlock <= MAX_BLOCK) {
+		fread(&currentData, 8, 1, file);	// read into buffer
+		printf("READ DATA FROM FILE: %llx\n", currentData);
+
+		current = (struct dataNode *) malloc(sizeof(struct dataNode));
+		current->data = currentData;
+		current->next = NULL;
+
+		if (head == NULL) {
+			head = current;
+		}
+		else if (tmp != NULL) {
+			tmp->next = current;
+		}
+		tmp = current;
+		currentBlock++;
+	}
+	fclose(file);
+
+	result.data = fileSize;
+	result.next = head;
+
+	printf("Done reading file\n");
+	return result;
+}
+
+/* 
+ * Writes out blocks of 64bit data to a file
+ */
+void writeFile(char *filepath, struct dataNode start) {
+	printf("Writing file...\n");
+	FILE *file;
+	fopen_s(&file, filepath, "rb");
+
+	if (file == NULL) {
+		printf("Could not open file for writing at %s\n", filepath);
+		exit (1);
+	}
+	struct dataNode *current = &start;
+	while (current != NULL) {
+		printf("Writing file2...\n");
+		fwrite(&(current->data), 8, 1, file);
+
+		current = current->next;
+	}
+
+	printf("Done writing file\n");
+}
+
+/*
+ * Handles encryption/decryption
+ */
+void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) {
+
+	struct dataNode plainText = readFile(inputFile), 
+		*current, 
+		*newHead = (struct dataNode *) malloc(sizeof(struct dataNode)),
+		*newCurrent, 
+		*tmp = NULL;
+	current = &plainText;
+
+	if (action == 'e') {
+		newHead = (struct dataNode *) malloc(sizeof(struct dataNode));
+		// TODO - adjust current->data to contain garbage on one side
+		newHead->data = des.encryptBlock(current->data);
+		newHead->next = NULL;
+
+		current = current->next;
+
+		while (current != NULL) {
+			unsigned __int64 encryptedMessage = des.encryptBlock(current->data);
+			newCurrent = (struct dataNode *) malloc(sizeof(struct dataNode));
+
+			// create new LL of encrypted data from LL of read-in data
+			if (newHead->next == NULL) {
+				newHead->next = newCurrent;
+			}
+			else if (tmp != NULL) {
+				tmp->next = newCurrent;
+			}
+			tmp = newCurrent;
+
+			current = current->next;
+		}
+	}
+	else if (action == 'd') {
+		newHead = (struct dataNode *) malloc(sizeof(struct dataNode));
+		// TODO - adjust current->data to contain garbage on one side
+		newHead->data = des.decryptBlock(current->data);
+		newHead->next = NULL;
+
+		current = current->next;
+
+		while (current != NULL) {
+			unsigned __int64 encryptedMessage = des.encryptBlock(current->data);
+			newCurrent = (struct dataNode *) malloc(sizeof(struct dataNode));
+
+			// create new LL of encrypted data from LL of read-in data
+			if (newHead->next == NULL) {
+				newHead->next = newCurrent;
+			}
+			else if (tmp != NULL) {
+				tmp->next = newCurrent;
+			}
+			tmp = newCurrent;
+
+			current = current->next;
+		}
+	}
+	printf("Done with action\n");
+	writeFile(outputFile, *newHead);
+}
 
 /* Verifies that the key is legal. If it is surrounded in single quotes then it 
  * may contain any 8 ASCII characters. If it is not surrounded in quotes, then 
@@ -104,6 +298,11 @@ int _tmain(int argc, char *argv[])
 	else {
 		printf("Found %u args\n", argc-1);
 	}
+
+	int i;
+	for (i = 0; i < argc; i++) {
+		std::cout << argv[i] << std::endl;
+	}
 	
 	// parse first arg - action
 	action = *argv[1];
@@ -116,78 +315,18 @@ int _tmain(int argc, char *argv[])
 
 	// parse third arg - input file
 	inputFile = argv[3];
-	// TODO - check if file exists and we can read
+	printf("INPUT FILE: %s\n", inputFile);
 	
 	// parse fourth arg - output file
 	outputFile = argv[4];
-	// TODO - check if file exists and have write permission
 
 	printf("KEY: %llx\n", desKey);
 	// TODO - DES
 	DESEncrypter des = DESEncrypter::DESEncrypter(desKey);
 
+	debugDES(des);
 
-	/************  TEST  ************/
-	unsigned __int64 test64 = 0;
-	char *input = "The Quick Brown Fox Jumped Over The Lazy Dog";
-	int i;
-	for (i = 0; i < strlen(input); i++) {
-		test64  = test64 | *(input+i);
-		test64 = test64 << 8;
-	}
-
-	unsigned __int64 test2 = test64;
-	printf("test2 = %llx\n", test2);
-	char *result = (char *) std::malloc(sizeof(char)*8);
-	for (i = 0; i < 8; i++) {
-		char c = test2;
-		*(result+i) = c;
-		test2 = test2 >> 8;
-	}
-	printf("FINAL RESULT = %s\n", result);
-	
-	printf("Original Message in hex: %llx\n", test64);
-	unsigned __int64 e = des.encryptBlock(test64);
-	printf("Encrpyted Message in hex: %llx\n", e);
-	unsigned __int64 d = des.decryptBlock(e);
-	printf("Decrypted Message in hex: %llx\n", d);
-
-	result = (char *) std::malloc(sizeof(char)*8);
-	for (i = 0; i < 8; i++) {
-		char c = d;
-		*(result+i) = c;
-		d = d >> 8;
-	}
-	printf("FINAL RESULT = %s\n", result);
-	/************  TEST  ************/
-
-
-	struct dataNode plainText;
-	// TODO read in file
-
-	/*
-	if (action == 'e') {
-		// TODO 
-		// first block, right side should have file length - left side random garbage
-		// encrypt and write as first block
-		while (plainText != NULL) {
-			unsigned __int64 encryptedMessage = des.encryptBlock(plainText.data);
-			// TODO - write to file
-			plainText = plainText->next;
-		}
-	}
-	else if (action == 'd') {
-		// TODO 
-		// read first block, decrypt, right side should have file size - left side throw away
-		while (plainText != NULL) {
-			unsigned __int64 decryptedMessage = des.encryptBlock(plainText.data);
-			// TODO - write to file
-			plainText = plainText->next;
-		}
-	}
-	*/
-
+	//desStuff(des, action, inputFile, outputFile);
 
 	return 0;
 }
-
