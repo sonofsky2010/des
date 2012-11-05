@@ -117,7 +117,7 @@ unsigned __int32 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key)
 	int i;
 	for (i = 0; i < 48; i++) {
 		unsigned char whichPlace = SELECT[i];
-		unsigned char bit = ( 1 &( msg >> (31-whichPlace)) );	// checkBitFromLeft48
+		unsigned char bit = ( 1 &( msg >> (32-whichPlace)) );	// checkBitFromLeft48
 		if (bit) {
 			result = (result | (1i64<<(63-i)));
 		}
@@ -175,7 +175,7 @@ unsigned __int32 DESEncrypter::efunc(unsigned __int32 msg, unsigned __int64 key)
 	unsigned __int32 result2 = 0;
 	for (i = 0; i < 32; i++) {
 		unsigned char whichPlace = PERMUTE[i];
-		unsigned char bit = ( 1 &( total >> (31-whichPlace)) );
+		unsigned char bit = ( 1 &( total >> (32-whichPlace)) );
 		if (bit) {
 			result2 = (result2 | (1<<(31-i)));
 		}

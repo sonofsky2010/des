@@ -19,7 +19,8 @@
 
 struct dataNodeHead {
 	unsigned __int64 fileInfo;
-	int maxBlock;
+	int blocks;
+	int remainder;
 	struct dataNode *next;
 };
 
@@ -32,7 +33,7 @@ struct dataNode {
 void debugDES(DESEncrypter des) {
 	/************  TEST  ************/
 	unsigned __int64 test64 = 0;
-	char *input = "The Quick Brown Fox Jumped Over The Lazy Dog";
+	char *input = "type things";// and he got away with it panda banana horse fidjfgdsoijgosgsjo";
 	int i;
 	for (i = 0; i < strlen(input); i++) {
 		test64  = test64 | *(input+i);
@@ -49,6 +50,8 @@ void debugDES(DESEncrypter des) {
 	}
 	printf("FINAL RESULT = %s\n", result);
 	
+	//test64 = 0x50a7b03c8b0d65;
+
 	printf("Original Message in hex: %llx\n", test64);
 	unsigned __int64 e = des.encryptBlock(test64);
 	printf("Encrpyted Message in hex: %llx\n", e);
@@ -79,7 +82,6 @@ struct dataNodeHead readFile(char *filepath) {
 		exit(1);			// non-zero err indicates an error
 	}
 	__int64 fileSize = (int) (fileStat.st_size & 0x000000007fffffff);
-	printf("FILESIZE: %llx\n", fileSize);
 
 	// open file for reading
 	FILE *file;
@@ -89,25 +91,25 @@ struct dataNodeHead readFile(char *filepath) {
 		printf("Could not open file at %s\n", filepath);
 		exit(1);
 	}
+
 	struct dataNodeHead result;
 	struct dataNode *head = NULL, 
 					*tmp = NULL, 
 					*current = NULL;
-	
-	__int64 MAX_BLOCK;
+	// determine number of blocks we need to write
+	__int64 MAX_BLOCK = (__int64)(fileSize / 8);
 	if (fileSize % 8 != 0) {
-		MAX_BLOCK = (fileSize % 8) + 1;
+		result.remainder = fileSize % 8;
 	}
-	else {
-		MAX_BLOCK = (fileSize % 8);
-	}
-	printf("MAX BLOCK 1: %d\n", MAX_BLOCK);
+	printf("\n---- File Info ----\n");
+	printf("Filesize: %d\n", fileSize);
+	printf("Filesize/8 (Max Blocks): %d\n", fileSize/8);
+	printf("Filesize Remainder (Partial Block): %d\n", fileSize % 8);
+	printf("---- ---- ---- ----\n\n");
 
 	unsigned __int64 currentData = 0, currentBlock = 0;
 	while (currentBlock <= MAX_BLOCK) {
 		fread(&currentData, 8, 1, file);	// read into buffer
-		printf("READ DATA FROM FILE: %llx\n", currentData);
-
 		current = (struct dataNode *) malloc(sizeof(struct dataNode));
 		current->data = currentData;
 		current->next = NULL;
@@ -125,7 +127,6 @@ struct dataNodeHead readFile(char *filepath) {
 
 	result.fileInfo = fileSize;
 	result.next = head;
-	result.maxBlock = MAX_BLOCK;
 
 	printf("Done reading file\n");
 	return result;
@@ -145,19 +146,20 @@ void writeFile(char *filepath, struct dataNodeHead start) {
 		exit (1);
 	}
 	size_t wrote = fwrite(&(start.fileInfo), 8, 1, file);
-	printf("WROTE %u bytes\n", wrote);
+	printf("WROTE %u BLOCKS \n", wrote);
 
-	int MAX_BLOCK = start.maxBlock,
+	int MAX_BLOCK = start.blocks,
 		currentBlock = 0;
-	printf("MAX %d\n", start.maxBlock);
 	struct dataNode *current = start.next;
 	while (currentBlock <= MAX_BLOCK) {
-
-
+		
 		printf("___data: %llx\n", current->data);
-		fwrite(&(current->data), 8, 1, file);
-
-		if (currentBlock < MAX_BLOCK) {
+		if (currentBlock == MAX_BLOCK && start.remainder != 0) {
+			fwrite(&(current->data), start.remainder, 1, file);
+			current = current->next;
+		}
+		else {
+			fwrite(&(current->data), 8, 1, file);
 			current = current->next;
 		}
 		currentBlock++;
@@ -165,7 +167,38 @@ void writeFile(char *filepath, struct dataNodeHead start) {
 	printf("Done writing file\n");
 
 	fclose(file);
-	perror("The following error occured");
+	//perror("The following error occured");
+}
+
+void writeDecryptedFile(char *filepath, struct dataNodeHead start) {
+	printf("Writing decrypted file %s\n", filepath);
+	FILE *file;
+	fopen_s(&file, filepath, "w+b");
+	if (file == NULL) {
+		printf("Could not open file for writing at %s\n", filepath);
+		perror("The following error occured");
+		exit (1);
+	}
+
+	int currentBlock = 0;
+
+	struct dataNode *current = start.next;
+	while (currentBlock <= start.blocks) {
+		
+		printf("___data: %llx\n", current->data);
+		if (currentBlock == start.blocks && start.remainder != 0) {
+			fwrite(&(current->data), start.remainder, 1, file);
+			current = current->next;
+		}
+		else {
+			fwrite(&(current->data), 8, 1, file);
+			current = current->next;
+		}
+		currentBlock++;
+	}
+	printf("Done writing file\n");
+
+	fclose(file);
 }
 
 /*
@@ -179,11 +212,16 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
 					*newCurrent, 
 					*tmp = NULL;
 	current = plainText.next;
+	int BLOCKS = 0;
+	while (BLOCKS < plainText.blocks) {
+		printf("data: %llx\n", current->data);
+		BLOCKS++;
+	}
 
 	if (action == 'e') {
 		// TODO - adjust current->data to contain garbage on one side
-		newHead->fileInfo = des.encryptBlock(current->data);
-		newHead->maxBlock = plainText.maxBlock;
+		newHead->fileInfo = des.encryptBlock(plainText.fileInfo);
+		newHead->blocks = plainText.blocks;
 		newHead->next = NULL;
 
 		current = current->next;
@@ -205,10 +243,18 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
 
 			current = current->next;
 		}
+
+		writeFile(outputFile, *newHead);
 	}
 	else if (action == 'd') {
 		// TODO - adjust current->data to contain garbage on one side
-		newHead->fileInfo = des.decryptBlock(current->data);
+		newHead->fileInfo = des.decryptBlock(plainText.fileInfo);
+		// TODO get BLOCKS and REMAINDER from newHead->fileInfo
+		int decryptedBlocks = newHead->fileInfo;
+		printf("Decrypted File Size (HEX): %llx\n", decryptedBlocks);
+
+		newHead->blocks = plainText.blocks;
+		newHead->remainder = plainText.remainder;
 		newHead->next = NULL;
 
 		current = current->next;
@@ -216,6 +262,8 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
 		while (current != NULL) {
 			unsigned __int64 encryptedMessage = des.decryptBlock(current->data);
 			newCurrent = (struct dataNode *) malloc(sizeof(struct dataNode));
+			newCurrent->next = NULL;
+			newCurrent->data = encryptedMessage;
 
 			// create new LL of encrypted data from LL of read-in data
 			if (newHead->next == NULL) {
@@ -228,9 +276,11 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
 
 			current = current->next;
 		}
+
+		writeDecryptedFile(outputFile, *newHead);
 	}
-	printf("Done with action\n");
-	writeFile(outputFile, *newHead);
+	
+	printf("____DONE!____\n");
 }
 
 /* Verifies that the key is legal. If it is surrounded in single quotes then it 
@@ -238,12 +288,13 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
  * the key must contain 16 hex characters.
  */
 int verifyKey(char *key) {    // should this be const?
+	printf("Using Key: %s\n", key);
 	char *c;
 	int size, result = 0, i;
 
 	size = strlen(key);
 	c = key;
-	// check to see if we have an 8 byte string
+	// check to see if we have an 8 byte stringencryptedMsg
 	if (size == 10) {
 		// if we do, it should be surrounded in single quotes
 		if (*c == 39 && *(c + size - 1) == 39) {
@@ -301,7 +352,7 @@ int verifyAction(int *action) {
 }
 
 // TODO - uses char(ASCII) instead of _TCHAR(UNICODE)
-int _tmain(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
 	const char *helpMsg = "Usage: des -<action> <16HEXchars/'8chars'> <input-file> <output-file>";
 	const int expectedArgs = 4;
@@ -321,15 +372,19 @@ int _tmain(int argc, char *argv[])
 		printf("Found %u args\n", argc-1);
 	}
 
+	// TODO _ FIX THIS _
 	int i;
 	for (i = 0; i < argc; i++) {
-		std::cout << argv[i] << std::endl;
+		printf("%s\n", argv[i]);
+		//std::cout << argv[i] << std::endl;
 	}
+	// TODO _ FIX THIS _
+
 	
 	// parse first arg - action
 	action = *argv[1];
 	if (verifyAction(&action)) { return 1;}
-	printf("action %c\n\n", action);
+	printf("Action %c\n\n", action);
 
 	// parse second arg - 16 hex chars or 8 char string
 	key = argv[2];
@@ -337,13 +392,13 @@ int _tmain(int argc, char *argv[])
 
 	// parse third arg - input file
 	inputFile = argv[3];
-	printf("INPUT FILE: %s\n", inputFile);
+	printf("Input File: %s\n", inputFile);
 	
 	// parse fourth arg - output file
 	outputFile = argv[4];
+	printf("Output File: %s\n", outputFile);
 
-	printf("KEY: %llx\n", desKey);
-	// TODO - DES
+	printf("Key: %llx\n", desKey);
 	DESEncrypter des = DESEncrypter::DESEncrypter(desKey);
 
 	//debugDES(des);
