@@ -99,13 +99,15 @@ struct dataNodeHead readFile(char *filepath) {
 	// determine number of blocks we need to write
 	__int64 MAX_BLOCK = (__int64)(fileSize / 8);
 	if (fileSize % 8 != 0) {
+		MAX_BLOCK++;
+		result.blocks = MAX_BLOCK;
 		result.remainder = fileSize % 8;
 	}
-	printf("\n---- File Info ----\n");
+	/*printf("\n---- File Info ----\n");
 	printf("Filesize: %d\n", fileSize);
 	printf("Filesize/8 (Max Blocks): %d\n", fileSize/8);
 	printf("Filesize Remainder (Partial Block): %d\n", fileSize % 8);
-	printf("---- ---- ---- ----\n\n");
+	printf("---- ---- ---- ----\n\n");*/
 
 	unsigned __int64 currentData = 0, currentBlock = 0;
 	while (currentBlock <= MAX_BLOCK) {
@@ -128,7 +130,7 @@ struct dataNodeHead readFile(char *filepath) {
 	result.fileInfo = fileSize;
 	result.next = head;
 
-	printf("Done reading file\n");
+	//printf("Done reading file\n");
 	return result;
 }
 
@@ -138,7 +140,7 @@ struct dataNodeHead readFile(char *filepath) {
 void writeFile(char *filepath, struct dataNodeHead start) {
 	printf("Writing file %s\n", filepath);
 	FILE *file;
-	fopen_s(&file, filepath, "w+b");
+	fopen_s(&file, filepath, "wb");
 
 	if (file == NULL) {
 		printf("Could not open file for writing at %s\n", filepath);
@@ -146,28 +148,22 @@ void writeFile(char *filepath, struct dataNodeHead start) {
 		exit (1);
 	}
 	size_t wrote = fwrite(&(start.fileInfo), 8, 1, file);
-	printf("WROTE %u BLOCKS \n", wrote);
 
 	int MAX_BLOCK = start.blocks,
 		currentBlock = 0;
 	struct dataNode *current = start.next;
+	//printf("Want to write %d blocks\n", MAX_BLOCK);
 	while (currentBlock <= MAX_BLOCK) {
-		
-		printf("___data: %llx\n", current->data);
-		if (currentBlock == MAX_BLOCK && start.remainder != 0) {
-			fwrite(&(current->data), start.remainder, 1, file);
-			current = current->next;
+		if (&(current->data) == NULL) {
+			break;
 		}
-		else {
-			fwrite(&(current->data), 8, 1, file);
-			current = current->next;
-		}
+		fwrite(&(current->data), sizeof(__int64), 1, file);
+		current = current->next;
 		currentBlock++;
 	}
-	printf("Done writing file\n");
+	//printf("Done writing file\n");
 
 	fclose(file);
-	//perror("The following error occured");
 }
 
 void writeDecryptedFile(char *filepath, struct dataNodeHead start) {
@@ -180,23 +176,32 @@ void writeDecryptedFile(char *filepath, struct dataNodeHead start) {
 		exit (1);
 	}
 
-	int currentBlock = 0;
-
+	int currentBlock = 0, MAX_BLOCK = start.blocks;
+	//printf("NUMBER OF DECRYPTED BLOCKS: %d\n", start.blocks);
+	//printf("REMAINDER: %d\n", start.remainder);
 	struct dataNode *current = start.next;
-	while (currentBlock <= start.blocks) {
+	if (start.blocks % 8 == 0) {
+		MAX_BLOCK++;
+	}
+	while (currentBlock <= MAX_BLOCK) {
 		
-		printf("___data: %llx\n", current->data);
+		//printf("___data: %llx\n", current->data);
+		if (&(current->data) == NULL) {
+			break;
+		}
 		if (currentBlock == start.blocks && start.remainder != 0) {
 			fwrite(&(current->data), start.remainder, 1, file);
-			current = current->next;
+			//perror("The following error occured");
 		}
 		else {
-			fwrite(&(current->data), 8, 1, file);
-			current = current->next;
+			fwrite(&(current->data), sizeof(__int64), 1, file);
+			//perror("The following error occured");
 		}
+		
+		current = current->next;
 		currentBlock++;
 	}
-	printf("Done writing file\n");
+	//printf("Done writing file\n");
 
 	fclose(file);
 }
@@ -213,10 +218,12 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
 					*tmp = NULL;
 	current = plainText.next;
 	int BLOCKS = 0;
-	while (BLOCKS < plainText.blocks) {
+	/*while (BLOCKS < plainText.blocks) {
 		printf("data: %llx\n", current->data);
 		BLOCKS++;
-	}
+		current = current->next; 
+	}*/
+	current = plainText.next;
 
 	if (action == 'e') {
 		// TODO - adjust current->data to contain garbage on one side
@@ -248,13 +255,9 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
 	}
 	else if (action == 'd') {
 		// TODO - adjust current->data to contain garbage on one side
-		newHead->fileInfo = des.decryptBlock(plainText.fileInfo);
-		// TODO get BLOCKS and REMAINDER from newHead->fileInfo
-		int decryptedBlocks = newHead->fileInfo;
-		printf("Decrypted File Size (HEX): %llx\n", decryptedBlocks);
-
-		newHead->blocks = plainText.blocks;
-		newHead->remainder = plainText.remainder;
+		newHead->fileInfo = des.decryptBlock(plainText.next->data);
+		newHead->blocks = (int) ((newHead->fileInfo)/8);
+		newHead->remainder = (newHead->blocks) % 8;
 		newHead->next = NULL;
 
 		current = current->next;
@@ -280,7 +283,7 @@ void desStuff(DESEncrypter des, char action, char *inputFile, char *outputFile) 
 		writeDecryptedFile(outputFile, *newHead);
 	}
 	
-	printf("____DONE!____\n");
+	printf("\n---- DONE! ----\n");
 }
 
 /* Verifies that the key is legal. If it is surrounded in single quotes then it 
@@ -293,21 +296,28 @@ int verifyKey(char *key) {    // should this be const?
 	int size, result = 0, i;
 
 	size = strlen(key);
+	//printf("Key size: %d\n", size);
 	c = key;
 	// check to see if we have an 8 byte stringencryptedMsg
 	if (size == 10) {
 		// if we do, it should be surrounded in single quotes
-		if (*c == 39 && *(c + size - 1) == 39) {
+		if (key[0] == 39 && (key[size-1]) == 39) {
 			// check if the values are valid ASCII
 		}
 	}
 	// or a 16 hex string
 	else if (size == 16) {
 		// check if all values are hex - and convert string to direct hex vals
-		for (c; c < (c + size); c++) {
-			*c = (*c) - 30;		// convert to hex from ASCII
+		for (i=0; i < size; i++) {
+			if (key[i] >= 38 && key[i] <= 57) {
+				key[i] = key[i] - 48;
+			}
+			else if (key[i] >= 65 && key[i] <= 70) {
+				key[i] = key[i] - 55;
+			}
+			//printf("KEY[%d] = %d\n", i, key[i]);
 			// is the hex value valid?
-			if (*c <= 16 && *c >= 0) {
+			if (key[i] <= 16 && key[i] >= 0) {
 				// good - should we do anything?
 			}
 			else {
@@ -316,7 +326,6 @@ int verifyKey(char *key) {    // should this be const?
 				break;
 			}
 		}
-		
 	}
 	// otherwise - invalid key size
 	else {
@@ -388,7 +397,7 @@ int main(int argc, char *argv[])
 
 	// parse second arg - 16 hex chars or 8 char string
 	key = argv[2];
-	//if (verifyKey(key)) {return 1;}
+	if (verifyKey(key)) {printf("Bad key\n"); return 1;}
 
 	// parse third arg - input file
 	inputFile = argv[3];

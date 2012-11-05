@@ -288,9 +288,9 @@ unsigned __int64 DESEncrypter::decryptBlock(unsigned __int64 encryptedMsg) {
 DESEncrypter::DESEncrypter(unsigned __int64 key) {
 	createSubkeys(key);
 	int i;
-	for (i = 1; i <= 16; i++) {
+	/*for (i = 1; i <= 16; i++) {
 		printf("final key %d = %llx\n", i, keys[i]);
-	}
+	}*/
 }
 
 
